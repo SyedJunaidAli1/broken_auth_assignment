@@ -1,0 +1,36 @@
+.env file
+{
+APPLICATION_SECRET=somethingishere
+PORT=3000
+JWT_SECRET=7b3b38734038760a3a6fdc8433fad317d1ab8c5d
+}
+
+// auth/login
+{"message":"OTP sent","loginSessionId":"s8233i"}
+
+// auth/verify-otp
+
+{
+  "loginSessionId": "s8233i",
+  "otp": "405551"
+}
+
+// auth/token
+
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAdGVzdC5jb20iLCJzZXNzaW9uSWQiOiJzODIzM2kiLCJpYXQiOjE3NzA4ODk1MzksImV4cCI6MTc3MDg5MDQzOX0.svsuwaKAEP2gObrcezSythZQ6KnElkTVDPyyAdrzxvk",
+    "expires_in": 900
+}
+
+// protected
+
+{
+    "message": "Access granted",
+    "user": {
+        "email": "test@test.com",
+        "sessionId": "s8233i",
+        "iat": 1770889539,
+        "exp": 1770890439
+    },
+    "success_flag": "FLAG-dGVzdEB0ZXN0LmNvbV9DT01QTEVURURfQVNTSUdOTUVOVA=="
+}
