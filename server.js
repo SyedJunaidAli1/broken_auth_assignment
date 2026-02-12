@@ -5,8 +5,10 @@ const requestLogger = require("./middleware/logger");
 const authMiddleware = require("./middleware/auth");
 const { generateToken } = require("./utils/tokenGenerator");
 
+require("dotenv").config();
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 // Session storage (in-memory)
 const loginSessions = {};
@@ -15,9 +17,10 @@ const otpStore = {};
 // Middleware
 app.use(requestLogger);
 app.use(express.json());
-
+app.use(cookieParser());
 
 app.get("/", (req, res) => {
+  console.log("ROOT ROUTE HIT");
   res.json({
     challenge: "Complete the Authentication Flow",
     instruction:
@@ -50,6 +53,7 @@ app.post("/auth/login", (req, res) => {
     otpStore[loginSessionId] = otp;
 
     console.log(`[OTP] Session ${loginSessionId} generated`);
+    console.log(`[OTP] ${otp} for session ${loginSessionId}`);
 
     return res.status(200).json({
       message: "OTP sent",
@@ -68,9 +72,7 @@ app.post("/auth/verify-otp", (req, res) => {
     const { loginSessionId, otp } = req.body;
 
     if (!loginSessionId || !otp) {
-      return res
-        .status(400)
-        .json({ error: "loginSessionId and otp required" });
+      return res.status(400).json({ error: "loginSessionId and otp required" });
     }
 
     const session = loginSessions[loginSessionId];
@@ -109,32 +111,36 @@ app.post("/auth/verify-otp", (req, res) => {
 
 app.post("/auth/token", (req, res) => {
   try {
-    const token = req.headers.authorization;
+    const sessionToken = req.cookies.session_token;
 
-    if (!token) {
+    if (!sessionToken) {
       return res
         .status(401)
         .json({ error: "Unauthorized - valid session required" });
     }
 
-    const session = loginSessions[token.replace("Bearer ", "")];
+    const session = loginSessions[sessionToken];
 
     if (!session) {
       return res.status(401).json({ error: "Invalid session" });
     }
 
     // Generate JWT
-    const secret = process.env.JWT_SECRET || "default-secret-key";
+    const secret = process.env.JWT_SECRET;
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET must be defined in .env");
+    }
 
     const accessToken = jwt.sign(
       {
         email: session.email,
-        sessionId: token,
+        sessionId: sessionToken,
       },
       secret,
       {
         expiresIn: "15m",
-      }
+      },
     );
 
     return res.status(200).json({
@@ -154,7 +160,7 @@ app.get("/protected", authMiddleware, (req, res) => {
   return res.json({
     message: "Access granted",
     user: req.user,
-    success_flag: `FLAG-${Buffer.from(req.user.email + "_COMPLETED_ASSIGNMENT").toString('base64')}`,
+    success_flag: `FLAG-${Buffer.from(req.user.email + "_COMPLETED_ASSIGNMENT").toString("base64")}`,
   });
 });
 
