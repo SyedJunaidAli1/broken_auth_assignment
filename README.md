@@ -1,111 +1,167 @@
-# The Silent Server (Backend Debugging Assignment)
+# Broken Authentication Flow – Debug & Fix Assignment
 
-This API is intentionally broken. Your task is to debug it and complete the authentication flow.
-
-## Setup
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Start the server:
-   ```bash
-   npm start
-   ```
-   Server runs at: `http://localhost:3000`
-
-## Assignment Objective
-
-The goal is to fix the broken authentication endpoints so that a user can:
-1.  **Login** to get a session ID and OTP.
-2.  **Verify the OTP** to get a valid session cookie.
-3.  **Exchange the Session** for a JWT Access Token.
-4.  **Access Protected Routes** using the token.
-
-You will need to use your browser's developer tools, network inspection, and server logs to debug.
+This project is a fixed and improved version of the intentionally broken authentication server provided in the assignment.  
+The objective was to debug the authentication flow, identify security flaws, and implement production-aware improvements.
 
 ---
 
-## Tasks & Verification
+## 🚀 Setup Instructions
 
-### Task 1: Fix Login
-**Endpoint:** `POST /auth/login`
-The server should generate a session and log an OTP to the console.
-
-**Test Command:**
 ```bash
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"<YOUR_EMAIL@example.com>","password":"password123"}'
+npm install
+npm start
 ```
-**Expected Outcome:**
-- Server logs the OTP (e.g., `[OTP] Session abc12345 generated`).
-- Response contains `loginSessionId`.
 
-### Task 2: Fix OTP Verification
-**Endpoint:** `POST /auth/verify-otp`
-The server fails to verify the OTP correctly. You need to find out why.
-*Hint: Check data types and how cookies are set.*
+Server runs on:
 
-**Test Command:**
-(Replace `<loginSessionId>` and `<otp>` with values from Task 1)
-```bash
-curl -c cookies.txt -X POST http://localhost:3000/auth/verify-otp \
-  -H "Content-Type: application/json" \
-  -d '{"loginSessionId":"<loginSessionId>","otp":"<otp_from_logs>"}'
 ```
-**Expected Outcome:**
-- `cookies.txt` is created containing a session cookie.
-- Response says "OTP verified".
-
-### Task 3: Fix Token Generation
-**Endpoint:** `POST /auth/token`
-This endpoint is supposed to issue a JWT, but it has a bug in how it reads the session.
-
-**Test Command:**
-```bash
-# Uses the cookie captured in Task 2
-curl -b cookies.txt -X POST http://localhost:3000/auth/token
+http://localhost:3000
 ```
-**Expected Outcome:**
-- Response contains `{ "access_token": "..." }`.
-
-### Task 4: Fix Protected Route Access
-**Endpoint:** `GET /protected`
-Ensure the middleware correctly validates the token.
-
-**Test Command:**
-```bash
-# Replace <jwt> with the token from Task 3
-curl -H "Authorization: Bearer <jwt>" http://localhost:3000/protected
-```
-**Expected Outcome:**
-- Response: `{ "message": "Access granted", "user": ... }`
 
 ---
 
+## 🔐 Authentication Flow
 
-## Expected Output
+The authentication system follows a session + JWT based approach:
 
-After fixing the bugs, you should be able to run the following sequence successfully:
+### 1️⃣ Login
 
-1.  **Login**: Receive a `loginSessionId` and see an OTP in the server logs.
-2.  **Verify OTP**: Receive a session cookie (`session_token`).
-3.  **Get Token**: Exchange the session cookie for a JWT (`access_token`).
-4.  **Access Protected Route**: Use the JWT to get a 200 OK response with user details and a **unique Success Flag**.
+```
+POST /auth/login
+```
 
-**Important**: You must use **your own email address** when testing the login flow. The success flag is generated based on the email you use.
+- Accepts email and password
+- Generates a temporary login session
+- Creates a 6-digit OTP (logged in console for testing)
 
+---
 
+### 2️⃣ Verify OTP
 
+```
+POST /auth/verify-otp
+```
 
-## Submission
+- Validates OTP and session expiry
+- Sets a secure HTTP-only cookie (`session_token`)
 
-To submit your assignment:
+---
 
-1.  Push your code to a **Public GitHub Repository**.
-2.  Add a file named `output.txt` in your repository.
-    *   This file must contain the terminal output of all 4 test commands (Login, Verify OTP, Get Token, Access Protected Route).
-    *   Ensure the final command's output showing the `success_flag` is clearly visible in this file.
-3.  Share the link to your repository.
+### 3️⃣ Generate Access Token
+
+```
+POST /auth/token
+```
+
+- Reads session from cookie
+- Issues a JWT access token valid for 15 minutes
+
+---
+
+### 4️⃣ Access Protected Route
+
+```
+GET /protected
+```
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+Successful authentication returns the protected flag.
+
+---
+
+## 🛠 Issues Identified & Fixed
+
+### ✅ Middleware Blocking Requests
+
+- Logger middleware was missing `next()`, causing requests to hang.
+- Auth middleware also lacked `next()` after successful verification.
+
+**Fix:** Ensured proper middleware chaining.
+
+---
+
+### ✅ Broken Session Lookup
+
+- Token route referenced an undefined variable, breaking authentication.
+
+**Fix:** Corrected session retrieval using the cookie-based session token.
+
+---
+
+### ✅ Cookie Parser Not Used
+
+- `cookie-parser` was imported but never initialized.
+
+**Fix:** Added middleware to correctly parse cookies.
+
+---
+
+### ✅ Insecure JWT Secret Fallback
+
+- The server allowed a default secret if `JWT_SECRET` was missing.
+
+**Fix:** Enforced environment variable validation at startup.
+
+---
+
+### ✅ Predictable Session IDs
+
+- Sessions were generated using `Math.random()`, which is not secure.
+
+**Fix:** Replaced with cryptographically secure IDs using Node.js `crypto`.
+
+---
+
+### ✅ Expired Sessions Not Cleaned
+
+- Old sessions remained in memory.
+
+**Fix:** Added cleanup when sessions expire.
+
+---
+
+### ✅ Improved Cookie Security
+
+Added protective flags:
+
+- `httpOnly`
+- `secure` (production)
+- `sameSite: strict`
+- expiration via `maxAge`
+
+---
+
+## 🔒 Security Improvements
+
+- Enforced JWT secret validation
+- Secure session generation
+- Hardened cookie configuration
+- Proper authentication middleware flow
+- Prevented unauthorized route access
+
+---
+
+## 📄 Environment Variables
+
+Create a `.env` file:
+
+```
+PORT=3000
+APPLICATION_SECRET=
+JWT_SECRET=your_super_secret_key
+```
+
+⚠️ `.env` is ignored via `.gitignore`.
+
+---
+
+## ⏱ Time Taken
+
+~2 hours
+
+---
